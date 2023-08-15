@@ -5,14 +5,14 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.3
   creationTimestamp: null
-  name: providerconfigusages.template.crossplane.io
+  name: providerconfigusages.crosslol.crossplane.io
 spec:
-  group: template.crossplane.io
+  group: crosslol.crossplane.io
   names:
     categories:
     - crossplane
     - provider
-    - template
+    - crosslol
     kind: ProviderConfigUsage
     listKind: ProviderConfigUsageList
     plural: providerconfigusages

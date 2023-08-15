@@ -1,9 +1,8 @@
-apiVersion: sample.template.crossplane.io/v1alpha1
-kind: MyType
+apiVersion: test.crosslol.crossplane.io/v1alpha1
+kind: User
 metadata:
-  name: example
+  name: "bolabjor"
 spec:
   forProvider:
-    configurableField: test
-  providerConfigRef:
-    name: example
+    name: "dab"
+    age: 9

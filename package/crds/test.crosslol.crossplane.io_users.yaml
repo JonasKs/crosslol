@@ -5,18 +5,18 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.11.3
   creationTimestamp: null
-  name: mytypes.sample.template.crossplane.io
+  name: users.test.crosslol.crossplane.io
 spec:
-  group: sample.template.crossplane.io
+  group: test.crosslol.crossplane.io
   names:
     categories:
     - crossplane
     - managed
-    - template
-    kind: MyType
-    listKind: MyTypeList
-    plural: mytypes
-    singular: mytype
+    - crosslol
+    kind: User
+    listKind: UserList
+    plural: users
+    singular: user
   scope: Cluster
   versions:
   - additionalPrinterColumns:
@@ -29,13 +29,10 @@ spec:
     - jsonPath: .metadata.annotations.crossplane\.io/external-name
       name: EXTERNAL-NAME
       type: string
-    - jsonPath: .metadata.creationTimestamp
-      name: AGE
-      type: date
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: A MyType is an example API type.
+        description: A User is an example API type.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -50,7 +47,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: A MyTypeSpec defines the desired state of a MyType.
+            description: A UserSpec defines the desired state of a User.
             properties:
               deletionPolicy:
                 default: Delete
@@ -66,12 +63,15 @@ spec:
                 - Delete
                 type: string
               forProvider:
-                description: MyTypeParameters are the configurable fields of a MyType.
+                description: UserParameters are the configurable fields of a User.
                 properties:
-                  configurableField:
+                  age:
+                    type: integer
+                  name:
                     type: string
                 required:
-                - configurableField
+                - age
+                - name
                 type: object
               managementPolicy:
                 default: FullControl
@@ -260,17 +260,21 @@ spec:
             - forProvider
             type: object
           status:
-            description: A MyTypeStatus represents the observed state of a MyType.
+            description: A UserStatus represents the observed state of a User.
             properties:
               atProvider:
-                description: MyTypeObservation are the observable fields of a MyType.
+                description: UserObservation are the observable fields of a User.
                 properties:
-                  configurableField:
+                  age:
+                    type: integer
+                  k8s:
                     type: string
-                  observableField:
+                  name:
                     type: string
                 required:
-                - configurableField
+                - age
+                - k8s
+                - name
                 type: object
               conditions:
                 description: Conditions of the resource.

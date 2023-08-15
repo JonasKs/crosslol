@@ -1,5 +1,5 @@
 /*
-Copyright 2020 The Crossplane Authors.
+Copyright 2022 The Crossplane Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,85 +14,72 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mytype
+package user
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/pkg/errors"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/crossplane/crossplane-runtime/pkg/connection"
 	"github.com/crossplane/crossplane-runtime/pkg/controller"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
+	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/ratelimiter"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
 
-	"github.com/crossplane/provider-template/apis/sample/v1alpha1"
-	apisv1alpha1 "github.com/crossplane/provider-template/apis/v1alpha1"
-	"github.com/crossplane/provider-template/internal/features"
+	"github.com/crossplane/provider-crosslol/apis/test/v1alpha1"
+	apisv1alpha1 "github.com/crossplane/provider-crosslol/apis/v1alpha1"
+	"github.com/crossplane/provider-crosslol/internal/features"
 )
 
 const (
-	errNotMyType    = "managed resource is not a MyType custom resource"
+	errNotUser      = "managed resource is not a User custom resource"
 	errTrackPCUsage = "cannot track ProviderConfig usage"
 	errGetPC        = "cannot get ProviderConfig"
 	errGetCreds     = "cannot get credentials"
-
-	errNewClient = "cannot create new Service"
 )
 
-// A NoOpService does nothing.
-type NoOpService struct{}
-
-var (
-	newNoOpService = func(_ []byte) (interface{}, error) { return &NoOpService{}, nil }
-)
-
-// Setup adds a controller that reconciles MyType managed resources.
+// Setup adds a controller that reconciles User managed resources.
 func Setup(mgr ctrl.Manager, o controller.Options) error {
-	name := managed.ControllerName(v1alpha1.MyTypeGroupKind)
+	name := managed.ControllerName(v1alpha1.UserGroupKind)
 
 	cps := []managed.ConnectionPublisher{managed.NewAPISecretPublisher(mgr.GetClient(), mgr.GetScheme())}
 	if o.Features.Enabled(features.EnableAlphaExternalSecretStores) {
 		cps = append(cps, connection.NewDetailsManager(mgr.GetClient(), apisv1alpha1.StoreConfigGroupVersionKind))
 	}
 
-	opts := []managed.ReconcilerOption{
+	r := managed.NewReconciler(mgr,
+		resource.ManagedKind(v1alpha1.UserGroupVersionKind),
 		managed.WithExternalConnecter(&connector{
-			kube:         mgr.GetClient(),
-			usage:        resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
-			newServiceFn: newNoOpService}),
+			kube:  mgr.GetClient(),
+			usage: resource.NewProviderConfigUsageTracker(mgr.GetClient(), &apisv1alpha1.ProviderConfigUsage{}),
+		}),
 		managed.WithLogger(o.Logger.WithValues("controller", name)),
 		managed.WithPollInterval(o.PollInterval),
 		managed.WithRecorder(event.NewAPIRecorder(mgr.GetEventRecorderFor(name))),
-		managed.WithConnectionPublishers(cps...),
-	}
-
-	if o.Features.Enabled(features.EnableAlphaManagementPolicies) {
-		opts = append(opts, managed.WithManagementPolicies())
-	}
-
-	r := managed.NewReconciler(mgr, resource.ManagedKind(v1alpha1.MyTypeGroupVersionKind), opts...)
+		managed.WithConnectionPublishers(cps...))
 
 	return ctrl.NewControllerManagedBy(mgr).
 		Named(name).
 		WithOptions(o.ForControllerRuntime()).
 		WithEventFilter(resource.DesiredStateChanged()).
-		For(&v1alpha1.MyType{}).
+		For(&v1alpha1.User{}).
 		Complete(ratelimiter.NewReconciler(name, r, o.GlobalRateLimiter))
 }
 
 // A connector is expected to produce an ExternalClient when its Connect method
 // is called.
 type connector struct {
-	kube         client.Client
-	usage        resource.Tracker
-	newServiceFn func(creds []byte) (interface{}, error)
+	kube  client.Client
+	usage resource.Tracker
 }
 
 // Connect typically produces an ExternalClient by:
@@ -101,50 +88,60 @@ type connector struct {
 // 3. Getting the credentials specified by the ProviderConfig.
 // 4. Using the credentials to form a client.
 func (c *connector) Connect(ctx context.Context, mg resource.Managed) (managed.ExternalClient, error) {
-	cr, ok := mg.(*v1alpha1.MyType)
+	_, ok := mg.(*v1alpha1.User)
 	if !ok {
-		return nil, errors.New(errNotMyType)
+		return nil, errors.New(errNotUser)
 	}
 
 	if err := c.usage.Track(ctx, mg); err != nil {
 		return nil, errors.Wrap(err, errTrackPCUsage)
 	}
-
-	pc := &apisv1alpha1.ProviderConfig{}
-	if err := c.kube.Get(ctx, types.NamespacedName{Name: cr.GetProviderConfigReference().Name}, pc); err != nil {
-		return nil, errors.Wrap(err, errGetPC)
-	}
-
-	cd := pc.Spec.Credentials
-	data, err := resource.CommonCredentialExtractor(ctx, cd.Source, c.kube, cd.CommonCredentialSelectors)
-	if err != nil {
-		return nil, errors.Wrap(err, errGetCreds)
-	}
-
-	svc, err := c.newServiceFn(data)
-	if err != nil {
-		return nil, errors.Wrap(err, errNewClient)
-	}
-
-	return &external{service: svc}, nil
+	return &external{}, nil
 }
 
 // An ExternalClient observes, then either creates, updates, or deletes an
 // external resource to ensure it reflects the managed resource's desired state.
-type external struct {
-	// A 'client' used to connect to the external resource API. In practice this
-	// would be something like an AWS SDK client.
-	service interface{}
+type external struct{}
+
+type User struct {
+	Name string `json:"name"`
+	Age  int    `json:"age"`
 }
 
 func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.ExternalObservation, error) {
-	cr, ok := mg.(*v1alpha1.MyType)
+	cr, ok := mg.(*v1alpha1.User)
 	if !ok {
-		return managed.ExternalObservation{}, errors.New(errNotMyType)
+		return managed.ExternalObservation{}, errors.New(errNotUser)
 	}
 
 	// These fmt statements should be removed in the real implementation.
-	fmt.Printf("Observing: %+v", cr)
+	fmt.Printf("Observing:")
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("http://localhost:8000/hello/%s", cr.Spec.ForProvider.Name), bytes.NewBuffer([]byte{}))
+	if err != nil {
+		return managed.ExternalObservation{}, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return managed.ExternalObservation{}, err
+	}
+	fmt.Println("Response: ", resp)
+	if err != nil {
+		fmt.Println("Err response: ", err)
+		return managed.ExternalObservation{
+			ResourceExists: false,
+		}, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println("Err response: ", resp.StatusCode)
+		return managed.ExternalObservation{
+			ResourceExists: false,
+		}, nil
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Println("Err closing response: ", err)
+		}
+	}()
 
 	return managed.ExternalObservation{
 		// Return false when the external resource does not exist. This lets
@@ -164,13 +161,46 @@ func (c *external) Observe(ctx context.Context, mg resource.Managed) (managed.Ex
 }
 
 func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.ExternalCreation, error) {
-	cr, ok := mg.(*v1alpha1.MyType)
+	cr, ok := mg.(*v1alpha1.User)
 	if !ok {
-		return managed.ExternalCreation{}, errors.New(errNotMyType)
+		return managed.ExternalCreation{}, errors.New(errNotUser)
 	}
 
-	fmt.Printf("Creating: %+v", cr)
+	fmt.Printf("Creating:")
 
+	// These fmt statements should be removed in the real implementation.
+	x := User{
+		Name: cr.Spec.ForProvider.Name,
+		Age:  cr.Spec.ForProvider.Age,
+	}
+	jsonBytes, err := json.Marshal(x)
+	if err != nil {
+		fmt.Println("Err marsh: ", err)
+		return managed.ExternalCreation{}, err
+	}
+	req, err := http.NewRequestWithContext(ctx, "POST", "http://localhost:8000/hello", bytes.NewBuffer(jsonBytes))
+	if err != nil {
+		fmt.Println("Err req: ", err)
+		return managed.ExternalCreation{}, err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return managed.ExternalCreation{}, err
+	}
+	if err != nil {
+		fmt.Println("Err response: ", err)
+		return managed.ExternalCreation{}, err
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Println("Err closing response: ", err)
+		}
+	}()
+	fmt.Println("Response: ", resp)
+	if resp.StatusCode != http.StatusOK {
+		return managed.ExternalCreation{}, errors.New("bad status code")
+	}
+	meta.SetExternalName(cr, cr.Spec.ForProvider.Name)
 	return managed.ExternalCreation{
 		// Optionally return any details that may be required to connect to the
 		// external resource. These will be stored as the connection secret.
@@ -179,12 +209,12 @@ func (c *external) Create(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.ExternalUpdate, error) {
-	cr, ok := mg.(*v1alpha1.MyType)
+	_, ok := mg.(*v1alpha1.User)
 	if !ok {
-		return managed.ExternalUpdate{}, errors.New(errNotMyType)
+		return managed.ExternalUpdate{}, errors.New(errNotUser)
 	}
 
-	fmt.Printf("Updating: %+v", cr)
+	fmt.Printf("Updating:")
 
 	return managed.ExternalUpdate{
 		// Optionally return any details that may be required to connect to the
@@ -194,12 +224,27 @@ func (c *external) Update(ctx context.Context, mg resource.Managed) (managed.Ext
 }
 
 func (c *external) Delete(ctx context.Context, mg resource.Managed) error {
-	cr, ok := mg.(*v1alpha1.MyType)
+	cr, ok := mg.(*v1alpha1.User)
 	if !ok {
-		return errors.New(errNotMyType)
+		return errors.New(errNotUser)
 	}
 
-	fmt.Printf("Deleting: %+v", cr)
-
+	fmt.Printf("Deleting:")
+	req, err := http.NewRequestWithContext(ctx, "DELETE", fmt.Sprintf("http://localhost:8000/hello/%s", cr.Spec.ForProvider.Name), nil)
+	if err != nil {
+		fmt.Println("Err response: ", err)
+		return err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fmt.Println("Err response: ", err)
+		return err
+	}
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			fmt.Println("Err closing response: ", err)
+		}
+	}()
+	fmt.Println("Response: ", resp)
 	return nil
 }
