@@ -21,6 +21,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/crossplane/provider-crosslol/internal/controller/config"
+	"github.com/crossplane/provider-crosslol/internal/controller/joke"
 	"github.com/crossplane/provider-crosslol/internal/controller/user"
 )
 
@@ -30,6 +31,7 @@ func Setup(mgr ctrl.Manager, o controller.Options) error {
 	for _, setup := range []func(ctrl.Manager, controller.Options) error{
 		config.Setup,
 		user.Setup,
+		joke.Setup,
 	} {
 		if err := setup(mgr, o); err != nil {
 			return err

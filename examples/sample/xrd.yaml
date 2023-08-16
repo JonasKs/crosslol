@@ -1,0 +1,32 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xtestcompositions.test.intility.com
+spec:
+  group: test.intility.com
+  names:
+    kind: XTestComposition
+    plural: xtestcompositions
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    joke:
+                      type: string
+                  required:
+                    - name
+                    - joke
+              required:
+                - parameters

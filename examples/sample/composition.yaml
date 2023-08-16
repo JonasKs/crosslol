@@ -1,0 +1,40 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: test-composition
+  labels:
+    provider: crosslol
+spec:
+  compositeTypeRef:
+    apiVersion: test.intility.com/v1alpha1
+    kind: XTestComposition
+
+  resources:
+    - name: user1
+      base:
+        apiVersion: test.crosslol.crossplane.io/v1alpha1
+        kind: User
+        metadata:
+          name: "bolabjor"
+        spec:
+          forProvider:
+            age: 9
+        patches:
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.parameters.name
+            toFieldPath: spec.forProvider.name
+
+    - name: joke1
+      base:
+        apiVersion: test.crosslol.crossplane.io/v1alpha1
+        kind: Joke
+        metadata:
+          name: "joketes"
+        spec:
+          forProvider:
+            joke: "jonas er teit"
+            score: 9
+        patches:
+          - type: FromCompositeFieldPath
+            fromFieldPath: spec.parameters.joke
+            toFieldPath: spec.forProvider.joke

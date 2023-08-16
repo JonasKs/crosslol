@@ -1,0 +1,11 @@
+apiVersion: test.intility.com/v1alpha1
+kind: XTestComposition
+metadata:
+  name: testing
+spec:
+  parameters:
+    name: bolabjor
+    joke: haha
+  compositionSelector:
+    matchLabels:
+      provider: crosslol
