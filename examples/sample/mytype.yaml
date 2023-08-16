@@ -6,3 +6,12 @@ spec:
   forProvider:
     name: "dab"
     age: 9
+---
+apiVersion: test.crosslol.crossplane.io/v1alpha1
+kind: Joke
+metadata:
+  name: "joketes"
+spec:
+  forProvider:
+    joke: "jonas er teit"
+    score: 9
