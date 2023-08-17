@@ -19,10 +19,10 @@ spec:
         spec:
           forProvider:
             age: 9
-        patches:
-          - type: FromCompositeFieldPath
-            fromFieldPath: spec.parameters.name
-            toFieldPath: spec.forProvider.name
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.name
+          toFieldPath: spec.forProvider.name
 
     - name: joke1
       base:
@@ -32,9 +32,8 @@ spec:
           name: "joketes"
         spec:
           forProvider:
-            joke: "jonas er teit"
             score: 9
-        patches:
-          - type: FromCompositeFieldPath
-            fromFieldPath: spec.parameters.joke
-            toFieldPath: spec.forProvider.joke
+      patches:
+        - type: FromCompositeFieldPath
+          fromFieldPath: spec.parameters.joke
+          toFieldPath: spec.forProvider.joke
